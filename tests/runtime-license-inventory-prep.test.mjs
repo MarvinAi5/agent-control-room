@@ -4,7 +4,6 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { prepareRuntimeLicenseInventory, pnpmCommand } from '../scripts/runtime-license-inventory-prep.mjs';
 
 const repoRoot = process.cwd();
@@ -171,5 +170,3 @@ test('inventory prep pnpmCommand returns pnpm.cmd on win32 and pnpm elsewhere', 
   const expected = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
   assert.equal(pnpmCommand(), expected);
 });
-
-void tmpdir;
