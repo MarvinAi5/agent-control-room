@@ -36,11 +36,30 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { isAbsolute, resolve as pathResolve, sep } from 'node:path';
+import { isAbsolute, resolve as pathResolve, sep, join as pathJoin } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+/**
+ * Stable canonical hash of the dependency-field subset of `package.json`.
+ * Sorts each dep field's inner keys before serialization so the hash is
+ * invariant under reorder. Top-level field edits and inner key reorders
+ * do not move the hash; real dependency changes do. Must agree byte-for-byte
+ * with the same computation in runtime-license-report.mjs (the report
+ * guards against drift by recomputing this on every invocation).
+ */
+function manifestSubsetHash(repoRoot) {
+  const manifest = JSON.parse(readFileSync(pathJoin(repoRoot, 'package.json'), 'utf8'));
+  const subset = {};
+  for (const key of ['dependencies', 'devDependencies', 'optionalDependencies']) {
+    const field = manifest[key];
+    if (field && typeof field === 'object' && Object.keys(field).length) {
+      subset[key] = Object.fromEntries(Object.keys(field).sort().map(k => [k, field[k]]));
+    }
+  }
+  return hash(Buffer.from(JSON.stringify(subset)));
+}
 
 /**
  * Resolve the pnpm executable name for the current platform.
@@ -146,11 +165,10 @@ export function prepareRuntimeLicenseInventory({
   const lockfileAbs = resolve(lockfilePath);
   if (!existsSync(manifestAbs)) throw new Error(`license_inventory_manifest_missing: ${manifestAbs}`);
   if (!existsSync(lockfileAbs)) throw new Error(`license_inventory_lockfile_missing: ${lockfileAbs}`);
-  const manifestBytes = readFileSync(manifestAbs);
   const lockfileBytes = readFileSync(lockfileAbs);
   const records = flattenInventory(pnpmLicensesJson(repoRoot), repoRoot);
   const sortedPayload = {
-    manifestSha256: hash(manifestBytes),
+    manifestSha256: manifestSubsetHash(repoRoot),
     lockSha256: hash(lockfileBytes),
     source: `pnpm@${readPnpmVersion(repoRoot)} licenses list --prod --json`,
     scope: 'prepared local production dependency inventory; not bundle coverage',
