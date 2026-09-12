@@ -27,7 +27,7 @@ test('idea-lab project version alone does not prove a reopen event or retained h
     assert.match(document.body.textContent, /Versioned idea/);
     // Notice names the saved revision — but only the version, no cause inferred.
     assert.ok(document.querySelector('.private-project-revision'), 'expected revision notice for saved version >= 2');
-    assert.match(document.body.textContent, /saved revision 3/);
+    assert.match(document.body.textContent, /saved revision 3/i);
     // Negative assertion: the notice must NOT claim reopen or retained history.
     assert.doesNotMatch(document.body.textContent, /reopened/i);
     assert.doesNotMatch(document.body.textContent, /history remains recorded/i);
@@ -38,7 +38,7 @@ test('idea-lab project version alone does not prove a reopen event or retained h
     const ordinaryProject = { ...versionedProject, origin: 'ordinary' };
     await act(async () => render('project:ordinary', 'settings'));
     await act(async () => pending[1].resolve(Response.json({ project: ordinaryProject })));
-    assert.doesNotMatch(document.body.textContent, /saved revision 3/);
+    assert.doesNotMatch(document.body.textContent, /saved revision 3/i);
   } finally {
     await act(async () => root.unmount()); dom.window.close();
     for (const [key, descriptor] of Object.entries(saved)) {
