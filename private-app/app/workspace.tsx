@@ -32,25 +32,31 @@ export function ProjectIdeaOrigin({ project }: { project: ProjectView }) {
 
 export function ProjectRevisionNotice({ project }: { project: ProjectView }) {
   if (project.origin !== "idea_lab" || project.version < 2) return null;
-  // A versioned idea-lab project whose lifecycle is currently editable is one a reviewer has
-  // reopened or replaced. The notice names the revision but does not auto-act on it.
+  // A versioned idea-lab project whose lifecycle is currently editable is one that has been
+  // replaced or retained across a non-active state. We deliberately do NOT claim "reopen":
+  // a paused project that resumes also bumps its version past 2 without any reopening event.
+  // The notice names the saved version only; it does not infer a cause, a reopen event,
+  // or anything about retained history (the response only proves the current saved version,
+  // not that any earlier revisions are still recorded).
   if (project.lifecycle !== "active" || !project.lifecycleEditable) return null;
-  return <div className="private-notice private-project-revision" role="status" aria-label="Project reopened from a previous revision">
-    <p>This idea-lab project has been reopened. Saved revision {project.version} replaces an earlier archived or completed revision.</p>
-    <p>Its history remains recorded. Closing this tab does not undo the reopen. The Tasks page reflects the current revision only.</p>
+  return <div className="private-notice private-project-revision" role="status" aria-label="Project has a saved revision past its initial version">
+    <p>This idea-lab project is on saved revision {project.version}.</p>
+    <p>Closing this tab does not change the saved revision. The Tasks page shows what is recorded for the project currently open here.</p>
   </div>;
 }
 
 /** Network and transient errors are distinct from permission errors. A permission failure
  * (authentication_required / access_denied / not_found) collapses the page to `unavailable` and
  * is already rendered above. This notice is for everything else: connection failures, server
- * 5xx, malformed responses, request timeouts. */
+ * 5xx, malformed responses, request timeouts, AND write-side `uncertain` errors (a save that
+ * could not be confirmed by the server — these flow through here because they share the same
+ * recovery action). */
 export function ProjectErrorNotice({ error, onRetry, pending }: { error: BrowserRequestError; onRetry: () => void; pending: boolean }) {
   if (["authentication_required", "access_denied", "not_found"].includes(error.code)) return null;
-  return <div className="private-notice private-project-error" role="alert" aria-label="Project read failed">
+  return <div className="private-notice private-project-error" role="alert" aria-label="Project data could not be loaded">
     <p>{browserErrorMessage[error.code]}</p>
-    <p>This is a read error, not a permission failure. Other projects on this page were not affected. The next refresh will retry this read.</p>
-    <button type="button" disabled={pending} onClick={onRetry}>Refresh this project</button>
+    <p>This may be a read failure or an unconfirmed prior save; other projects on this page were not affected. Refreshing will reload current state without replaying any saved action whose outcome is unknown.</p>
+    <button type="button" disabled={pending} onClick={onRetry}>Refresh current state</button>
   </div>;
 }
 
